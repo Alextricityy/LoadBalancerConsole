@@ -14,7 +14,7 @@ try
     await Task.Delay(1000);
     
     // Start the LoadBalancer for health monitoring
-    var loadBalancer = new LoadBalancer(serverPorts, TimeSpan.FromSeconds(10));
+    var loadBalancer = new LoadBalancer(serverPorts, TimeSpan.FromSeconds(1));
     
     // Start the LoadBalancerProxy
     var proxy = new LoadBalancerProxy(loadBalancerPort, loadBalancer);

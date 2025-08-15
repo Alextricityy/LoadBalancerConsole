@@ -122,7 +122,7 @@ public class LoadBalancerProxy : IDisposable
             {
                 using var requestStream = incomingRequest.InputStream;
                 var bodyBytes = new byte[incomingRequest.ContentLength64];
-                await requestStream.ReadAsync(bodyBytes, 0, bodyBytes.Length);
+                await requestStream.ReadExactlyAsync(bodyBytes);
                 httpRequest.Content = new ByteArrayContent(bodyBytes);
                 
                 if (!string.IsNullOrEmpty(incomingRequest.ContentType))
