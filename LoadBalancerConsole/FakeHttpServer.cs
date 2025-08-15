@@ -7,14 +7,12 @@ namespace LoadBalancerConsole;
 public class FakeHttpServer
 {
     private readonly HttpListener _listener;
-    private readonly int _port;
-    private readonly string _serverId;
+    private readonly ServerInfo _serverInfo;
     private bool _isHealthy;
 
     public FakeHttpServer(int port, string serverId)
     {
-        _port = port;
-        _serverId = serverId;
+        _serverInfo = new ServerInfo(port, serverId);
         _isHealthy = true;
         _listener = new HttpListener();
         _listener.Prefixes.Add($"http://localhost:{port}/");
@@ -22,8 +20,10 @@ public class FakeHttpServer
 
     public async Task StartAsync()
     {
+        _serverInfo.Status = ServerStatus.Starting;
         _listener.Start();
-        Console.WriteLine($"Server {_serverId} started on port {_port}");
+        _serverInfo.Status = ServerStatus.Healthy;
+        Console.WriteLine($"Server {_serverInfo.ServerId} started on port {_serverInfo.Port}");
 
         while (1 == 1)
         {
@@ -47,9 +47,10 @@ public class FakeHttpServer
                     statusCode = _isHealthy ? 200 : 503;
                     responseText = JsonSerializer.Serialize(new
                     {
-                        serverId = _serverId,
+                        serverId = _serverInfo.ServerId,
                         status = _isHealthy ? "healthy" : "unhealthy",
-                        timestamp = DateTime.UtcNow
+                        timestamp = DateTime.UtcNow,
+                        port = _serverInfo.Port
                     });
                     break;
 
@@ -75,7 +76,8 @@ public class FakeHttpServer
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error handling request on server {_serverId}: {ex.Message}");
+            Console.WriteLine($"Error handling request on server {_serverInfo.ServerId}: {ex.Message}");
+            _serverInfo.Status = ServerStatus.Error;
             response.StatusCode = 500;
             response.OutputStream.Close();
         }
