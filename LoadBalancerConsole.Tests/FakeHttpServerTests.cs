@@ -1,24 +1,15 @@
 using System.Net;
-using System.Net.Sockets;
 using System.Text.Json;
 
 namespace LoadBalancerConsole.Tests;
 
 public class FakeHttpServerTests
 {
-    private static int GetAvailablePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
-    }
     
     [Fact]
     public async Task HealthEndpoint_ReturnsHealthyStatus()
     {
-        var port = GetAvailablePort();
+        var port = TestHelpers.GetAvailablePort();
         var server = new FakeHttpServer(port, "test-server");
         var serverTask = Task.Run(() => server.StartAsync());
         
@@ -40,7 +31,7 @@ public class FakeHttpServerTests
     [Fact]
     public async Task HelloWorldEndpoint_ReturnsPlainText()
     {
-        var port = GetAvailablePort();
+        var port = TestHelpers.GetAvailablePort();
         var server = new FakeHttpServer(port, "test-server");
         var serverTask = Task.Run(() => server.StartAsync());
         
@@ -58,7 +49,7 @@ public class FakeHttpServerTests
     [Fact]
     public async Task DefaultEndpoint_ReturnsDefaultResponse()
     {
-        var port = GetAvailablePort();
+        var port = TestHelpers.GetAvailablePort();
         var server = new FakeHttpServer(port, "test-server");
         var serverTask = Task.Run(() => server.StartAsync());
         
@@ -76,7 +67,7 @@ public class FakeHttpServerTests
     [Fact]
     public void Constructor_WithPortAndServerId_SetsPropertiesCorrectly()
     {
-        var port = GetAvailablePort();
+        var port = TestHelpers.GetAvailablePort();
         var server = new FakeHttpServer(port, "constructor-test");
         
         Assert.NotNull(server);
@@ -102,7 +93,7 @@ public class FakeHttpServerTests
     [Fact]
     public async Task HealthEndpoint_IncludesPortInResponse()
     {
-        var port = GetAvailablePort();
+        var port = TestHelpers.GetAvailablePort();
         var server = new FakeHttpServer(port, "port-test-server");
         var serverTask = Task.Run(() => server.StartAsync());
         

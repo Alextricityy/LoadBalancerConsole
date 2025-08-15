@@ -1,26 +1,15 @@
-using System.Net;
-using System.Net.Sockets;
-
 namespace LoadBalancerConsole.Tests;
 
 public class ServerKillerTests
 {
-    private static int GetAvailablePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
-    }
 
     [Fact]
     public void Constructor_CreatesServerKillerWithServers()
     {
         var servers = new List<FakeHttpServer>
         {
-            new FakeHttpServer(GetAvailablePort(), "test-server-1"),
-            new FakeHttpServer(GetAvailablePort(), "test-server-2")
+            new FakeHttpServer(TestHelpers.GetAvailablePort(), "test-server-1"),
+            new FakeHttpServer(TestHelpers.GetAvailablePort(), "test-server-2")
         };
 
         using var serverKiller = new ServerKiller(servers, TimeSpan.FromMinutes(10), TimeSpan.FromMinutes(20));
@@ -31,7 +20,7 @@ public class ServerKillerTests
     [Fact]
     public void KillServer_SetsServerToUnhealthy()
     {
-        var server = new FakeHttpServer(GetAvailablePort(), "test-server");
+        var server = new FakeHttpServer(TestHelpers.GetAvailablePort(), "test-server");
         var servers = new List<FakeHttpServer> { server };
 
         using var serverKiller = new ServerKiller(servers, TimeSpan.FromHours(1), TimeSpan.FromHours(2));
@@ -47,7 +36,7 @@ public class ServerKillerTests
     [Fact]
     public void ReviveServer_SetsServerToHealthy()
     {
-        var server = new FakeHttpServer(GetAvailablePort(), "test-server");
+        var server = new FakeHttpServer(TestHelpers.GetAvailablePort(), "test-server");
         var servers = new List<FakeHttpServer> { server };
 
         using var serverKiller = new ServerKiller(servers, TimeSpan.FromHours(1), TimeSpan.FromHours(2));
@@ -66,8 +55,8 @@ public class ServerKillerTests
     {
         var servers = new List<FakeHttpServer>
         {
-            new FakeHttpServer(GetAvailablePort(), "test-server-1"),
-            new FakeHttpServer(GetAvailablePort(), "test-server-2")
+            new FakeHttpServer(TestHelpers.GetAvailablePort(), "test-server-1"),
+            new FakeHttpServer(TestHelpers.GetAvailablePort(), "test-server-2")
         };
 
         using var serverKiller = new ServerKiller(servers, TimeSpan.FromHours(1), TimeSpan.FromHours(2));
@@ -81,7 +70,7 @@ public class ServerKillerTests
     [Fact]
     public void SetHealthy_UpdatesServerHealthStatus()
     {
-        var server = new FakeHttpServer(GetAvailablePort(), "test-server");
+        var server = new FakeHttpServer(TestHelpers.GetAvailablePort(), "test-server");
 
         server.SetHealthy(false);
         Assert.False(server.IsHealthy);
@@ -97,7 +86,7 @@ public class ServerKillerTests
     {
         var servers = new List<FakeHttpServer>
         {
-            new FakeHttpServer(GetAvailablePort(), "test-server")
+            new FakeHttpServer(TestHelpers.GetAvailablePort(), "test-server")
         };
 
         using var serverKiller = new ServerKiller(servers, TimeSpan.FromMilliseconds(50), TimeSpan.FromMilliseconds(100));
@@ -112,7 +101,7 @@ public class ServerKillerTests
     {
         var servers = new List<FakeHttpServer>
         {
-            new FakeHttpServer(GetAvailablePort(), "test-server")
+            new FakeHttpServer(TestHelpers.GetAvailablePort(), "test-server")
         };
 
         var serverKiller = new ServerKiller(servers, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2));

@@ -1,23 +1,12 @@
-using System.Net;
-using System.Net.Sockets;
-
 namespace LoadBalancerConsole.Tests;
 
 public class LoadBalancerTests
 {
-    private static int GetAvailablePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
-    }
 
     [Fact]
     public async Task CheckServerHealthAsync_WithHealthyServer_ReturnsTrue()
     {
-        var port = GetAvailablePort();
+        var port = TestHelpers.GetAvailablePort();
         var server = new FakeHttpServer(port, "server-1");
         var serverTask = Task.Run(() => server.StartAsync());
         
@@ -36,7 +25,7 @@ public class LoadBalancerTests
     [Fact]
     public async Task CheckServerHealthAsync_WithDownServer_ReturnsFalse()
     {
-        var port = GetAvailablePort();
+        var port = TestHelpers.GetAvailablePort();
         var loadBalancer = new LoadBalancer(new[] { port }, TimeSpan.FromHours(1));
         var serverInfo = new ServerInfo(port, "server-1");
         
@@ -50,8 +39,8 @@ public class LoadBalancerTests
     [Fact]
     public async Task GetHealthyServers_WithMixedServerStates_ReturnsOnlyHealthyServers()
     {
-        var healthyPort = GetAvailablePort();
-        var downPort = GetAvailablePort();
+        var healthyPort = TestHelpers.GetAvailablePort();
+        var downPort = TestHelpers.GetAvailablePort();
         
         var healthyServer = new FakeHttpServer(healthyPort, "server-1");
         var serverTask = Task.Run(() => healthyServer.StartAsync());
@@ -74,7 +63,7 @@ public class LoadBalancerTests
     [Fact]
     public void GetAllServers_ReturnsAllConfiguredServers()
     {
-        var ports = new[] { GetAvailablePort(), GetAvailablePort(), GetAvailablePort() };
+        var ports = new[] { TestHelpers.GetAvailablePort(), TestHelpers.GetAvailablePort(), TestHelpers.GetAvailablePort() };
         var loadBalancer = new LoadBalancer(ports, TimeSpan.FromHours(1));
         
         var allServers = loadBalancer.GetAllServers();
@@ -109,7 +98,7 @@ public class LoadBalancerTests
     [Fact]
     public async Task PeriodicHealthChecks_UpdatesServerStatus()
     {
-        var healthyPort = GetAvailablePort();
+        var healthyPort = TestHelpers.GetAvailablePort();
         var healthyServer = new FakeHttpServer(healthyPort, "server-1");
         var serverTask = Task.Run(() => healthyServer.StartAsync());
         
@@ -129,7 +118,7 @@ public class LoadBalancerTests
     [Fact]
     public void Dispose_CleansUpResources()
     {
-        var ports = new[] { GetAvailablePort(), GetAvailablePort() };
+        var ports = new[] { TestHelpers.GetAvailablePort(), TestHelpers.GetAvailablePort() };
         var loadBalancer = new LoadBalancer(ports, TimeSpan.FromSeconds(1));
         
         loadBalancer.Dispose();

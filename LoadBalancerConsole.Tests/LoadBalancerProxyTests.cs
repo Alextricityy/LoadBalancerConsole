@@ -1,26 +1,17 @@
 using System.Net;
-using System.Net.Sockets;
 using System.Text;
 
 namespace LoadBalancerConsole.Tests;
 
 public class LoadBalancerProxyTests
 {
-    private static int GetAvailablePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
-    }
 
     [Fact]
     public void Constructor_CreatesProxyWithLoadBalancer()
     {
-        var serverPorts = new[] { GetAvailablePort(), GetAvailablePort() };
+        var serverPorts = new[] { TestHelpers.GetAvailablePort(), TestHelpers.GetAvailablePort() };
         var loadBalancer = new LoadBalancer(serverPorts, TimeSpan.FromHours(1));
-        var proxyPort = GetAvailablePort();
+        var proxyPort = TestHelpers.GetAvailablePort();
 
         using var proxy = new LoadBalancerProxy(proxyPort, loadBalancer);
 
@@ -31,14 +22,14 @@ public class LoadBalancerProxyTests
     [Fact]
     public async Task Proxy_WithHealthyServers_ForwardsRequests()
     {
-        var serverPort = GetAvailablePort();
+        var serverPort = TestHelpers.GetAvailablePort();
         var backendServer = new FakeHttpServer(serverPort, "backend-1");
         var serverTask = Task.Run(() => backendServer.StartAsync());
 
         await Task.Delay(500);
 
         var loadBalancer = new LoadBalancer(new[] { serverPort }, TimeSpan.FromSeconds(1));
-        var proxyPort = GetAvailablePort();
+        var proxyPort = TestHelpers.GetAvailablePort();
         var proxy = new LoadBalancerProxy(proxyPort, loadBalancer);
         var proxyTask = Task.Run(() => proxy.StartAsync());
 
@@ -66,7 +57,7 @@ public class LoadBalancerProxyTests
     public async Task Proxy_WithNoHealthyServers_Returns503()
     {
         var loadBalancer = new LoadBalancer(Array.Empty<int>(), TimeSpan.FromMinutes(1));
-        var proxyPort = GetAvailablePort();
+        var proxyPort = TestHelpers.GetAvailablePort();
         var proxy = new LoadBalancerProxy(proxyPort, loadBalancer);
         var proxyTask = Task.Run(() => proxy.StartAsync());
 
@@ -92,8 +83,8 @@ public class LoadBalancerProxyTests
     [Fact]
     public async Task Proxy_WithMultipleServers_UsesRoundRobin()
     {
-        var serverPort1 = GetAvailablePort();
-        var serverPort2 = GetAvailablePort();
+        var serverPort1 = TestHelpers.GetAvailablePort();
+        var serverPort2 = TestHelpers.GetAvailablePort();
         
         var server1 = new FakeHttpServer(serverPort1, "backend-1");
         var server2 = new FakeHttpServer(serverPort2, "backend-2");
@@ -104,7 +95,7 @@ public class LoadBalancerProxyTests
         await Task.Delay(500);
 
         var loadBalancer = new LoadBalancer(new[] { serverPort1, serverPort2 }, TimeSpan.FromSeconds(1));
-        var proxyPort = GetAvailablePort();
+        var proxyPort = TestHelpers.GetAvailablePort();
         var proxy = new LoadBalancerProxy(proxyPort, loadBalancer);
         var proxyTask = Task.Run(() => proxy.StartAsync());
 
@@ -149,7 +140,7 @@ public class LoadBalancerProxyTests
     public void Dispose_CleansUpResources()
     {
         var loadBalancer = new LoadBalancer(Array.Empty<int>(), TimeSpan.FromMinutes(1));
-        var proxyPort = GetAvailablePort();
+        var proxyPort = TestHelpers.GetAvailablePort();
         var proxy = new LoadBalancerProxy(proxyPort, loadBalancer);
 
         proxy.Dispose();
@@ -161,8 +152,8 @@ public class LoadBalancerProxyTests
     [Fact]
     public async Task Proxy_WithServerReturning500_RetriesWithNextServer()
     {
-        var failingPort = GetAvailablePort();
-        var healthyPort = GetAvailablePort();
+        var failingPort = TestHelpers.GetAvailablePort();
+        var healthyPort = TestHelpers.GetAvailablePort();
         
         var failingServer = new FakeHttpServer(failingPort, "failing-server");
         var healthyServer = new FakeHttpServer(healthyPort, "healthy-server");
@@ -175,7 +166,7 @@ public class LoadBalancerProxyTests
         await Task.Delay(500);
 
         var loadBalancer = new LoadBalancer(new[] { failingPort, healthyPort }, TimeSpan.FromSeconds(1));
-        var proxyPort = GetAvailablePort();
+        var proxyPort = TestHelpers.GetAvailablePort();
         var proxy = new LoadBalancerProxy(proxyPort, loadBalancer);
         var proxyTask = Task.Run(() => proxy.StartAsync());
 
@@ -202,16 +193,16 @@ public class LoadBalancerProxyTests
     [Fact]
     public async Task Proxy_WithFailingServer_RetriesWithOtherServers()
     {
-        var healthyPort = GetAvailablePort();
+        var healthyPort = TestHelpers.GetAvailablePort();
         var healthyServer = new FakeHttpServer(healthyPort, "healthy-server");
         var serverTask = Task.Run(() => healthyServer.StartAsync());
 
         await Task.Delay(500);
 
         // Setup load balancer with healthy server and non-existent server
-        var nonExistentPort = GetAvailablePort();
+        var nonExistentPort = TestHelpers.GetAvailablePort();
         var loadBalancer = new LoadBalancer(new[] { nonExistentPort, healthyPort }, TimeSpan.FromSeconds(1));
-        var proxyPort = GetAvailablePort();
+        var proxyPort = TestHelpers.GetAvailablePort();
         var proxy = new LoadBalancerProxy(proxyPort, loadBalancer);
         var proxyTask = Task.Run(() => proxy.StartAsync());
 
