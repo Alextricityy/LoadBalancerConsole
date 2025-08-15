@@ -1,46 +1,55 @@
 using LoadBalancerConsole;
 
 var serverPorts = new[] { 8001, 8002, 8003, 8004, 8005 };
-var servers = new List<FakeHttpServer>();
-var serverTasks = new List<Task>();
 
-Console.WriteLine($"Starting {serverPorts.Length} fake HTTP servers...");
+Console.WriteLine($"Starting {serverPorts.Length} HTTP servers...");
 
 try
 {
-    for (int i = 0; i < serverPorts.Length; i++)
-    {
-        var server = new FakeHttpServer(serverPorts[i], $"server-{i + 1}");
-        servers.Add(server);
-        
-        Console.WriteLine($"Starting fake HTTP server on port {serverPorts[i]} (ID: server-{i + 1})");
-        
-        var serverTask = Task.Run(async () =>
-        {
-            try
-            {
-                await server.StartAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Server on port {serverPorts[i]} failed: {ex.Message}");
-            }
-        });
-        
-        serverTasks.Add(serverTask);
-        
-        await Task.Delay(100);
-    }
-
-    Console.WriteLine("All servers started successfully. Press Ctrl+C to stop.");
+    // Start all servers concurrently
+    var serverTasks = StartServers(serverPorts);
+    
+    Console.WriteLine("All servers started. Press Ctrl+C to stop.");
+    Console.WriteLine($"Health endpoints: {string.Join(", ", serverPorts.Select(p => $"http://localhost:{p}/health"))}");
     
     await Task.WhenAll(serverTasks);
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"Error starting servers: {ex.Message}");
+    Console.WriteLine($"Error: {ex.Message}");
 }
 finally
 {
-    Console.WriteLine("Shutting down servers...");
+    Console.WriteLine("Shutting down...");
+}
+
+static Task[] StartServers(int[] ports)
+{
+    var tasks = new Task[ports.Length];
+    
+    for (int i = 0; i < ports.Length; i++)
+    {
+        var port = ports[i];
+        var serverId = $"server-{i + 1}";
+        
+        Console.WriteLine($"Starting {serverId} on port {port}");
+        
+        tasks[i] = Task.Run(async () =>
+        {
+            try
+            {
+                var server = new FakeHttpServer(port, serverId);
+                await server.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{serverId} (port {port}) failed: {ex.Message}");
+            }
+        });
+        
+        // Small delay to stagger startup
+        Thread.Sleep(50);
+    }
+    
+    return tasks;
 }

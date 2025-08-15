@@ -74,11 +74,61 @@ public class FakeHttpServerTests
     }
 
     [Fact]
-    public void Constructor_SetsPropertiesCorrectly()
+    public void Constructor_WithPortAndServerId_SetsPropertiesCorrectly()
     {
         var port = GetAvailablePort();
         var server = new FakeHttpServer(port, "constructor-test");
         
         Assert.NotNull(server);
+        Assert.NotNull(server.ServerInfo);
+        Assert.Equal(port, server.ServerInfo.Port);
+        Assert.Equal("constructor-test", server.ServerInfo.ServerId);
+        Assert.Equal($"http://localhost:{port}", server.ServerInfo.BaseUrl);
+        Assert.Equal(ServerStatus.Unknown, server.ServerInfo.Status);
+    }
+
+    [Fact]
+    public void Constructor_WithServerInfo_SetsPropertiesCorrectly()
+    {
+        var serverInfo = new ServerInfo(9000, "test-server-info");
+        var server = new FakeHttpServer(serverInfo);
+        
+        Assert.NotNull(server);
+        Assert.Same(serverInfo, server.ServerInfo);
+        Assert.Equal(9000, server.ServerInfo.Port);
+        Assert.Equal("test-server-info", server.ServerInfo.ServerId);
+    }
+
+    [Fact]
+    public async Task HealthEndpoint_IncludesPortInResponse()
+    {
+        var port = GetAvailablePort();
+        var server = new FakeHttpServer(port, "port-test-server");
+        var serverTask = Task.Run(() => server.StartAsync());
+        
+        await Task.Delay(500);
+        
+        using var client = new HttpClient();
+        var response = await client.GetAsync($"http://localhost:{port}/health");
+        var content = await response.Content.ReadAsStringAsync();
+        
+        var healthData = JsonSerializer.Deserialize<JsonElement>(content);
+        Assert.Equal(port, healthData.GetProperty("port").GetInt32());
+        Assert.Equal("port-test-server", healthData.GetProperty("serverId").GetString());
+    }
+
+    [Fact]
+    public void ServerInfo_StatusUpdates_WorkCorrectly()
+    {
+        var serverInfo = new ServerInfo(8000, "status-test");
+        var server = new FakeHttpServer(serverInfo);
+        
+        Assert.Equal(ServerStatus.Unknown, server.ServerInfo.Status);
+        
+        server.ServerInfo.UpdateHealth(true);
+        
+        Assert.Equal(ServerStatus.Healthy, server.ServerInfo.Status);
+        Assert.True(server.ServerInfo.IsHealthy);
+        Assert.True(server.ServerInfo.LastHealthCheck > DateTime.MinValue);
     }
 }

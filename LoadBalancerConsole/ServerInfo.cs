@@ -2,12 +2,12 @@ namespace LoadBalancerConsole;
 
 public class ServerInfo
 {
-    public int Port { get; set; }
-    public string ServerId { get; set; } = string.Empty;
-    public string BaseUrl { get; set; } = string.Empty;
-    public bool IsHealthy { get; set; }
-    public DateTime LastHealthCheck { get; set; }
-    public ServerStatus Status { get; set; } = ServerStatus.Unknown;
+    public int Port { get; }
+    public string ServerId { get; }
+    public string BaseUrl { get; }
+    public bool IsHealthy { get; private set; }
+    public DateTime LastHealthCheck { get; private set; }
+    public ServerStatus Status { get; set; }
 
     public ServerInfo(int port, string serverId)
     {
@@ -19,20 +19,25 @@ public class ServerInfo
         Status = ServerStatus.Unknown;
     }
 
-    public void UpdateHealthStatus(bool isHealthy, TimeSpan responseTime, string? error = null)
+    public void UpdateHealth(bool isHealthy)
     {
         IsHealthy = isHealthy;
         LastHealthCheck = DateTime.UtcNow;
         Status = isHealthy ? ServerStatus.Healthy : ServerStatus.Unhealthy;
+    }
+    public string PrintInfo()
+    {
+        var timeStr = LastHealthCheck == DateTime.MinValue ? "Never" : LastHealthCheck.ToString("HH:mm:ss");
+        return $"Server {ServerId} (Port {Port}): {Status} - Last checked: {timeStr}";
     }
 }
 
 public enum ServerStatus
 {
     Unknown,
+    Starting,
     Healthy,
     Unhealthy,
-    Starting,
-    Stopping,
-    Error
+    Error,
+    Stopping
 }
