@@ -1,0 +1,95 @@
+namespace LoadBalancerConsole;
+
+public class ServerKiller : IDisposable
+{
+    private readonly List<FakeHttpServer> _servers;
+    private readonly Timer _killerTimer;
+    private readonly Random _random;
+    private readonly TimeSpan _minInterval;
+    private readonly TimeSpan _maxInterval;
+
+    public ServerKiller(IEnumerable<FakeHttpServer> servers, TimeSpan? minInterval = null, TimeSpan? maxInterval = null)
+    {
+        _servers = servers.ToList();
+        _random = new Random();
+        _minInterval = minInterval ?? TimeSpan.FromSeconds(5);
+        _maxInterval = maxInterval ?? TimeSpan.FromSeconds(15);
+        
+        // Start the killer timer with initial random delay
+        var initialDelay = GetRandomInterval();
+        _killerTimer = new Timer(ExecuteRandomKill, null, initialDelay, Timeout.InfiniteTimeSpan);
+        
+        Console.WriteLine($"ServerKiller activated! Will randomly affect servers every {_minInterval.TotalSeconds}-{_maxInterval.TotalSeconds} seconds");
+    }
+
+    public void KillServer(FakeHttpServer server)
+    {
+        server.SetHealthy(false);
+        Console.WriteLine($"ServerKiller: Manually killed {server.ServerInfo.ServerId} (port {server.ServerInfo.Port})");
+    }
+
+    public void ReviveServer(FakeHttpServer server)
+    {
+        server.SetHealthy(true);
+        Console.WriteLine($"ServerKiller: Manually revived {server.ServerInfo.ServerId} (port {server.ServerInfo.Port})");
+    }
+
+    public void PrintStatus()
+    {
+        Console.WriteLine("ServerKiller Status Report:");
+        foreach (var server in _servers)
+        {
+            var status = server.IsHealthy ? "ALIVE" : "DEAD";
+            Console.WriteLine($"   {server.ServerInfo.ServerId}: {status}");
+        }
+    }
+
+    private void ExecuteRandomKill(object? state)
+    {
+        if (!_servers.Any())
+        {
+            ScheduleNextKill();
+            return;
+        }
+
+        var randomServer = _servers[_random.Next(_servers.Count)];
+        var action = _random.Next(100);
+
+        // 70% chance to kill if healthy, 80% chance to revive if dead
+        if (randomServer.IsHealthy && action < 70)
+        {
+            randomServer.SetHealthy(false);
+            Console.WriteLine($"ServerKiller: Randomly killed {randomServer.ServerInfo.ServerId} (port {randomServer.ServerInfo.Port})");
+        }
+        else if (!randomServer.IsHealthy && action < 80)
+        {
+            randomServer.SetHealthy(true);
+            Console.WriteLine($"ServerKiller: Randomly revived {randomServer.ServerInfo.ServerId} (port {randomServer.ServerInfo.Port})");
+        }
+        else
+        {
+            Console.WriteLine($"ServerKiller: Decided to leave {randomServer.ServerInfo.ServerId} alone this time");
+        }
+
+        ScheduleNextKill();
+    }
+    private void ScheduleNextKill()
+    {
+        var nextInterval = GetRandomInterval();
+        _killerTimer.Change(nextInterval, Timeout.InfiniteTimeSpan);
+    }
+
+    private TimeSpan GetRandomInterval()
+    {
+        var minMs = (int)_minInterval.TotalMilliseconds;
+        var maxMs = (int)_maxInterval.TotalMilliseconds;
+        var randomMs = _random.Next(minMs, maxMs + 1);
+        return TimeSpan.FromMilliseconds(randomMs);
+    }
+
+    public void Dispose()
+    {
+        _killerTimer?.Dispose();
+        Console.WriteLine("ServerKiller deactivated");
+    }
+}

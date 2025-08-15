@@ -11,6 +11,7 @@ public class FakeHttpServer
     private bool _isHealthy = true;
 
     public ServerInfo ServerInfo => _serverInfo;
+    public bool IsHealthy => _isHealthy;
 
     public FakeHttpServer(int port, string serverId)
     {
@@ -87,5 +88,12 @@ public class FakeHttpServer
         };
         
         return JsonSerializer.Serialize(healthData);
+    }
+
+// make this method public so serverkiller can directly affect status, which wouldn't happen in normalk scenario
+    public void SetHealthy(bool isHealthy)
+    {
+        _isHealthy = isHealthy;
+        _serverInfo.Status = isHealthy ? ServerStatus.Healthy : ServerStatus.Unhealthy;
     }
 }
