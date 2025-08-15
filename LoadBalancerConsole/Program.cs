@@ -1,22 +1,38 @@
 using LoadBalancerConsole;
 
 var serverPorts = new[] { 8001, 8002, 8003, 8004, 8005 };
+var loadBalancerPort = 9000;
 var servers = new List<FakeHttpServer>();
 
-Console.WriteLine($"Starting {serverPorts.Length} HTTP servers...");
 
 try
 {
     // Start all servers concurrently
     var serverTasks = StartServers(serverPorts, servers);
     
-    Console.WriteLine("All servers started. Press Ctrl+C to stop.");
-    Console.WriteLine($"Health endpoints: {string.Join(", ", serverPorts.Select(p => $"http://localhost:{p}/health"))}");
+    // Wait a moment for servers to start
+    await Task.Delay(1000);
     
-    // Start the ServerKiller with random intervals between 3-10 seconds
-    using var serverKiller = new ServerKiller(servers, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(10));
+    // Start the LoadBalancer for health monitoring
+    var loadBalancer = new LoadBalancer(serverPorts, TimeSpan.FromSeconds(10));
     
-    await Task.WhenAll(serverTasks);
+    // Start the LoadBalancerProxy
+    var proxy = new LoadBalancerProxy(loadBalancerPort, loadBalancer);
+    var proxyTask = Task.Run(() => proxy.StartAsync());
+    
+    Console.WriteLine("All systems started!");
+    Console.WriteLine($"Access your load-balanced service at: http://localhost:{loadBalancerPort}/");
+    Console.WriteLine($"Try endpoints: /health, /helloworld, or any other path");
+    Console.WriteLine($"Individual server health: {string.Join(", ", serverPorts.Select(p => $"http://localhost:{p}/health"))}");
+    
+    // Start the ServerKiller with random intervals between 5-15 seconds
+    using var serverKiller = new ServerKiller(servers, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15));
+    
+    Console.WriteLine("Press Ctrl+C to stop.");
+    
+    // Wait for all tasks
+    var allTasks = serverTasks.Concat(new[] { proxyTask }).ToArray();
+    await Task.WhenAll(allTasks);
 }
 catch (Exception ex)
 {

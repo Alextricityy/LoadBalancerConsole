@@ -27,6 +27,16 @@ public class LoadBalancer : IDisposable
         return new List<ServerInfo>(_servers);
     }
 
+    //used for testing purposes to force a server's health status
+    public void ForceServerHealthy(int port, bool isHealthy)
+    {
+        var server = _servers.FirstOrDefault(s => s.Port == port);
+        if (server != null)
+        {
+            server.UpdateHealth(isHealthy);
+        }
+    }
+
     public async Task<bool> CheckServerHealthAsync(ServerInfo server)
     {
         try
