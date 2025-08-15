@@ -159,6 +159,47 @@ public class LoadBalancerProxyTests
     }
 
     [Fact]
+    public async Task Proxy_WithServerReturning500_RetriesWithNextServer()
+    {
+        var failingPort = GetAvailablePort();
+        var healthyPort = GetAvailablePort();
+        
+        var failingServer = new FakeHttpServer(failingPort, "failing-server");
+        var healthyServer = new FakeHttpServer(healthyPort, "healthy-server");
+        
+        failingServer.SetForcedStatusCode(500);
+        
+        var serverTask1 = Task.Run(() => failingServer.StartAsync());
+        var serverTask2 = Task.Run(() => healthyServer.StartAsync());
+
+        await Task.Delay(500);
+
+        var loadBalancer = new LoadBalancer(new[] { failingPort, healthyPort }, TimeSpan.FromSeconds(1));
+        var proxyPort = GetAvailablePort();
+        var proxy = new LoadBalancerProxy(proxyPort, loadBalancer);
+        var proxyTask = Task.Run(() => proxy.StartAsync());
+
+        await Task.Delay(500);
+        
+        loadBalancer.ForceServerHealthy(failingPort, true);
+        loadBalancer.ForceServerHealthy(healthyPort, true);
+
+        try
+        {
+            using var client = new HttpClient();
+            var response = await client.GetAsync($"http://localhost:{proxyPort}/helloworld");
+            var content = await response.Content.ReadAsStringAsync();
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("hello world", content);
+        }
+        finally
+        {
+            proxy.Dispose();
+            loadBalancer.Dispose();
+        }
+    }
+
+    [Fact]
     public async Task Proxy_WithFailingServer_RetriesWithOtherServers()
     {
         var healthyPort = GetAvailablePort();

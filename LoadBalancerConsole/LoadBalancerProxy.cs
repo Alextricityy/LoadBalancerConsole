@@ -133,6 +133,12 @@ public class LoadBalancerProxy : IDisposable
 
             using var backendResponse = await _httpClient.SendAsync(httpRequest);
             
+            if (!backendResponse.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"Server {targetServer.ServerId} returned {backendResponse.StatusCode}, trying next server");
+                return false;
+            }
+            
             outgoingResponse.StatusCode = (int)backendResponse.StatusCode;
             
             foreach (var header in backendResponse.Headers)

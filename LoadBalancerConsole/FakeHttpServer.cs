@@ -9,6 +9,7 @@ public class FakeHttpServer
     private readonly HttpListener _listener;
     private readonly ServerInfo _serverInfo;
     private bool _isHealthy = true;
+    private int? _forcedStatusCode = null;
 
     public ServerInfo ServerInfo => _serverInfo;
     public bool IsHealthy => _isHealthy;
@@ -51,7 +52,7 @@ public class FakeHttpServer
         {
             var (responseText, contentType) = GetResponse(request.Url?.AbsolutePath);
             
-            response.StatusCode = _isHealthy ? 200 : 503;
+            response.StatusCode = _forcedStatusCode ?? (_isHealthy ? 200 : 503);
             response.ContentType = contentType;
             
             var buffer = Encoding.UTF8.GetBytes(responseText);
@@ -90,10 +91,15 @@ public class FakeHttpServer
         return JsonSerializer.Serialize(healthData);
     }
 
-// make this method public so serverkiller can directly affect status, which wouldn't happen in a normal scenario
+    // make this method public so serverkiller can directly affect status, which wouldn't happen in a normal scenario
     public void SetHealthy(bool isHealthy)
     {
         _isHealthy = isHealthy;
         _serverInfo.Status = isHealthy ? ServerStatus.Healthy : ServerStatus.Unhealthy;
+    }
+    // make this method public so that we can test forced status codes
+    public void SetForcedStatusCode(int? statusCode)
+    {
+        _forcedStatusCode = statusCode;
     }
 }
