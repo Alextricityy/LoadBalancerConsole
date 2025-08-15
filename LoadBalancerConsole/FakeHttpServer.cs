@@ -90,7 +90,7 @@ public class FakeHttpServer
         return JsonSerializer.Serialize(healthData);
     }
 
-// make this method public so serverkiller can directly affect status, which wouldn't happen in normalk scenario
+// make this method public so serverkiller can directly affect status, which wouldn't happen in a normal scenario
     public void SetHealthy(bool isHealthy)
     {
         _isHealthy = isHealthy;
