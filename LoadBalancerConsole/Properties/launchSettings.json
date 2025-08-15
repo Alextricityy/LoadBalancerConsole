@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "LoadBalancerConsole": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}
