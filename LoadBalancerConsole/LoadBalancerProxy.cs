@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Microsoft.Extensions.Configuration;
 
 namespace LoadBalancerConsole;
 public class LoadBalancerProxy : IDisposable
@@ -10,12 +11,15 @@ public class LoadBalancerProxy : IDisposable
     private readonly int _proxyPort;
     private int _currentServerIndex = 0;
     private readonly object _indexLock = new object();
+    private readonly int _maxRetryAttempts;
 
-    public LoadBalancerProxy(int proxyPort, LoadBalancer loadBalancer)
+    public LoadBalancerProxy(int proxyPort, LoadBalancer loadBalancer, IConfiguration? configuration = null)
     {
         _proxyPort = proxyPort;
         _loadBalancer = loadBalancer;
-        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        var proxyTimeout = configuration?.GetValue<int>("LoadBalancerProxy:TimeoutSeconds", 10) ?? 10;
+        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(proxyTimeout) };
+        _maxRetryAttempts = configuration?.GetValue<int>("LoadBalancerProxy:MaxRetryAttempts", 3) ?? 3;
         _listener = new HttpListener();
         _listener.Prefixes.Add($"http://localhost:{proxyPort}/");
     }
@@ -50,7 +54,7 @@ public class LoadBalancerProxy : IDisposable
 
             var success = false;
             var attemptsCount = 0;
-            var maxAttempts = Math.Min(healthyServers.Count, 3); // Try up to 3 servers or all available
+            var maxAttempts = Math.Min(healthyServers.Count, _maxRetryAttempts); // Try up to configured max attempts or all available
 
             while (!success && attemptsCount < maxAttempts)
             {

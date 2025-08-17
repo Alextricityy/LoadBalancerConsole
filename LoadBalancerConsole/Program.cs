@@ -1,23 +1,31 @@
 using LoadBalancerConsole;
+using Microsoft.Extensions.Configuration;
 
-var serverPorts = new[] { 8001, 8002, 8003, 8004, 8005 };
-var loadBalancerPort = 9000;
+var configuration = new ConfigurationBuilder()
+    .SetBasePath(Directory.GetCurrentDirectory())
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .Build();
+
+var serverPorts = configuration.GetSection("ServerConfiguration:ServerPorts").Get<int[]>() ?? new[] { 8001, 8002, 8003, 8004, 8005 };
+var loadBalancerPort = configuration.GetValue<int>("ServerConfiguration:LoadBalancerPort", 9000);
 var servers = new List<FakeHttpServer>();
 
 
 try
 {
     // Start all servers concurrently
-    var serverTasks = StartServers(serverPorts, servers);
+    var serverTasks = StartServers(serverPorts, servers, configuration);
     
     // Wait a moment for servers to start
-    await Task.Delay(1000);
+    var startupDelay = configuration.GetValue<int>("ServerConfiguration:ApplicationStartupDelayMs", 1000);
+    await Task.Delay(startupDelay);
     
     // Start the LoadBalancer for health monitoring
-    var loadBalancer = new LoadBalancer(serverPorts, TimeSpan.FromSeconds(5));
+    var healthCheckInterval = configuration.GetValue<int>("HealthCheck:IntervalSeconds", 5);
+    var loadBalancer = new LoadBalancer(serverPorts, TimeSpan.FromSeconds(healthCheckInterval), configuration);
     
     // Start the LoadBalancerProxy
-    var proxy = new LoadBalancerProxy(loadBalancerPort, loadBalancer);
+    var proxy = new LoadBalancerProxy(loadBalancerPort, loadBalancer, configuration);
     var proxyTask = Task.Run(() => proxy.StartAsync());
     
     Console.WriteLine("All systems started!");
@@ -25,8 +33,10 @@ try
     Console.WriteLine($"Try endpoints: /health, /helloworld, or any other path");
     Console.WriteLine($"Individual server health: {string.Join(", ", serverPorts.Select(p => $"http://localhost:{p}/health"))}");
     
-    // Start the ServerKiller with random intervals between 5-15 seconds
-    using var serverKiller = new ServerKiller(servers, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15));
+    // Start the ServerKiller with random intervals from configuration
+    var minKillInterval = configuration.GetValue<int>("ServerKiller:MinIntervalSeconds", 5);
+    var maxKillInterval = configuration.GetValue<int>("ServerKiller:MaxIntervalSeconds", 15);
+    using var serverKiller = new ServerKiller(servers, TimeSpan.FromSeconds(minKillInterval), TimeSpan.FromSeconds(maxKillInterval), configuration);
     
     Console.WriteLine("Press Ctrl+C to stop.");
     
@@ -43,9 +53,10 @@ finally
     Console.WriteLine("Shutting down...");
 }
 
-static Task[] StartServers(int[] ports, List<FakeHttpServer> servers)
+static Task[] StartServers(int[] ports, List<FakeHttpServer> servers, IConfiguration configuration)
 {
     var tasks = new Task[ports.Length];
+    var startupDelay = configuration.GetValue<int>("ServerConfiguration:ServerStartupDelayMs", 50);
     
     for (int i = 0; i < ports.Length; i++)
     {
@@ -69,7 +80,7 @@ static Task[] StartServers(int[] ports, List<FakeHttpServer> servers)
         });
         
         // Small delay to stagger startup
-        Thread.Sleep(50);
+        Thread.Sleep(startupDelay);
     }
     
     return tasks;

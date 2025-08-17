@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Configuration;
+
 namespace LoadBalancerConsole;
 
 public class ServerKiller : IDisposable
@@ -7,13 +9,17 @@ public class ServerKiller : IDisposable
     private readonly Random _random;
     private readonly TimeSpan _minInterval;
     private readonly TimeSpan _maxInterval;
+    private readonly int _killProbability;
+    private readonly int _reviveProbability;
 
-    public ServerKiller(IEnumerable<FakeHttpServer> servers, TimeSpan? minInterval = null, TimeSpan? maxInterval = null)
+    public ServerKiller(IEnumerable<FakeHttpServer> servers, TimeSpan? minInterval = null, TimeSpan? maxInterval = null, IConfiguration? configuration = null)
     {
         _servers = servers.ToList();
         _random = new Random();
-        _minInterval = minInterval ?? TimeSpan.FromSeconds(5);
-        _maxInterval = maxInterval ?? TimeSpan.FromSeconds(15);
+        _minInterval = minInterval ?? TimeSpan.FromSeconds(configuration?.GetValue<int>("ServerKiller:MinIntervalSeconds", 5) ?? 5);
+        _maxInterval = maxInterval ?? TimeSpan.FromSeconds(configuration?.GetValue<int>("ServerKiller:MaxIntervalSeconds", 15) ?? 15);
+        _killProbability = configuration?.GetValue<int>("ServerKiller:KillProbabilityPercent", 70) ?? 70;
+        _reviveProbability = configuration?.GetValue<int>("ServerKiller:ReviveProbabilityPercent", 80) ?? 80;
         
         // Start the killer timer with initial random delay
         var initialDelay = GetRandomInterval();
@@ -55,13 +61,13 @@ public class ServerKiller : IDisposable
         var randomServer = _servers[_random.Next(_servers.Count)];
         var action = _random.Next(100);
 
-        // 70% chance to kill if healthy, 80% chance to revive if dead
-        if (randomServer.IsHealthy && action < 70)
+        // chance to kill if healthy, chance to revive if dead
+        if (randomServer.IsHealthy && action < _killProbability)
         {
             randomServer.SetHealthy(false);
             Console.WriteLine($"ServerKiller: Randomly killed {randomServer.ServerInfo.ServerId} (port {randomServer.ServerInfo.Port})");
         }
-        else if (!randomServer.IsHealthy && action < 80)
+        else if (!randomServer.IsHealthy && action < _reviveProbability)
         {
             randomServer.SetHealthy(true);
             Console.WriteLine($"ServerKiller: Randomly revived {randomServer.ServerInfo.ServerId} (port {randomServer.ServerInfo.Port})");

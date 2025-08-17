@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 
 namespace LoadBalancerConsole;
 
@@ -8,12 +9,14 @@ public class LoadBalancer : IDisposable
     private readonly List<ServerInfo> _servers;
     private readonly Timer _healthCheckTimer;
 
-    public LoadBalancer(IEnumerable<int> serverPorts, TimeSpan? checkInterval = null)
+    public LoadBalancer(IEnumerable<int> serverPorts, TimeSpan? checkInterval = null, IConfiguration? configuration = null)
     {
-        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+        var healthCheckTimeout = configuration?.GetValue<int>("HealthCheck:TimeoutSeconds", 5) ?? 5;
+        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(healthCheckTimeout) };
         _servers = CreateServers(serverPorts);
         
-        var interval = checkInterval ?? TimeSpan.FromSeconds(30);
+        var defaultInterval = configuration?.GetValue<int>("HealthCheck:DefaultIntervalSeconds", 30) ?? 30;
+        var interval = checkInterval ?? TimeSpan.FromSeconds(defaultInterval);
         _healthCheckTimer = new Timer(RunHealthChecks, null, TimeSpan.Zero, interval);
     }
 
