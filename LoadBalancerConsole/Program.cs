@@ -38,7 +38,7 @@ try
     var serverKiller = new ServerKiller(servers, TimeSpan.FromSeconds(minKillInterval), TimeSpan.FromSeconds(maxKillInterval), configuration);
     
 
-    await RunApplicationAsync(serverTasks, proxyTask, loadBalancer, servers, serverKiller, serverPorts);
+    await RunApplicationAsync(serverTasks, proxyTask, loadBalancer, servers, serverKiller, serverPorts, loadBalancerPort);
     serverKiller.Dispose();
 }
 catch (Exception ex)
@@ -82,7 +82,7 @@ static Task[] StartServers(int[] ports, List<FakeHttpServer> servers, IConfigura
     return tasks;
 }
 
-static async Task RunApplicationAsync(Task[] serverTasks, Task proxyTask, LoadBalancer loadBalancer, List<FakeHttpServer> servers, ServerKiller serverKiller, int[] serverPorts)
+static async Task RunApplicationAsync(Task[] serverTasks, Task proxyTask, LoadBalancer loadBalancer, List<FakeHttpServer> servers, ServerKiller serverKiller, int[] serverPorts, int loadBalancerPort)
 {
     bool shouldExit = false;
     bool showingMenu = false;
@@ -138,7 +138,7 @@ static async Task RunApplicationAsync(Task[] serverTasks, Task proxyTask, LoadBa
                     showingMenu = true;
                     
                     // Create and show interactive menu
-                    using var menu = new InteractiveMenu(servers, serverKiller, loadBalancer, serverPorts);
+                    using var menu = new InteractiveMenu(servers, serverKiller, loadBalancer, serverPorts, loadBalancerPort);
                     await menu.ShowMainMenuAsync();
                     
                     showingMenu = false;

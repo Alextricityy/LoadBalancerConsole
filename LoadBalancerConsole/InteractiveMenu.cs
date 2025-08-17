@@ -10,14 +10,22 @@ public class InteractiveMenu : IDisposable
     private readonly LoadBalancer _loadBalancer;
     private readonly HttpClient _httpClient;
     private readonly int[] _serverPorts;
+    private readonly Dictionary<int, DateTime> _lastServerCalls;
+    private readonly int _loadBalancerPort;
+    private readonly ConnectionDisplayManager _connectionDisplayManager;
+    private readonly LoadBalancerDisplayManager _loadBalancerDisplayManager;
 
-    public InteractiveMenu(List<FakeHttpServer> servers, ServerKiller serverKiller, LoadBalancer loadBalancer, int[] serverPorts)
+    public InteractiveMenu(List<FakeHttpServer> servers, ServerKiller serverKiller, LoadBalancer loadBalancer, int[] serverPorts, int loadBalancerPort = 9000)
     {
         _servers = servers;
         _serverKiller = serverKiller;
         _loadBalancer = loadBalancer;
         _serverPorts = serverPorts;
+        _loadBalancerPort = loadBalancerPort;
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        _lastServerCalls = new Dictionary<int, DateTime>();
+        _connectionDisplayManager = new ConnectionDisplayManager(_lastServerCalls);
+        _loadBalancerDisplayManager = new LoadBalancerDisplayManager(_lastServerCalls, _loadBalancerPort);
     }
 
     public async Task ShowMainMenuAsync()
@@ -25,11 +33,11 @@ public class InteractiveMenu : IDisposable
         while (true)
         {
             AnsiConsole.Clear();
-            
+
             DisplayServerStatusTable();
-            
+
             AnsiConsole.WriteLine();
-            
+
             var panel = new Panel(
                 "[bold yellow]Load Balancer Console - Interactive Menu[/]\n\n" +
                 "Choose an option to interact with the system:")
@@ -46,6 +54,7 @@ public class InteractiveMenu : IDisposable
                     .PageSize(10)
                     .AddChoices(new[] {
                         "Call Server",
+                        "Call Load Balancer",
                         "Interactive ServerKiller",
                         "Exit to Main Display"
                     }));
@@ -55,6 +64,9 @@ public class InteractiveMenu : IDisposable
                 case "Call Server":
                     await HandleServerCallMenuAsync();
                     break;
+                case "Call Load Balancer":
+                    await HandleLoadBalancerCallMenuAsync();
+                    break;
                 case "Interactive ServerKiller":
                     await HandleServerKillerMenuAsync();
                     break;
@@ -63,11 +75,11 @@ public class InteractiveMenu : IDisposable
             }
         }
     }
-    
+
     private void DisplayServerStatusTable()
     {
         var allServers = _loadBalancer.GetAllServers();
-        
+
         var table = new Table();
         table.Title = new TableTitle("[bold]Server Health Status[/]");
         table.Border = TableBorder.Rounded;
@@ -82,19 +94,19 @@ public class InteractiveMenu : IDisposable
         // Create the status row with colored smiley faces
         var statusCells = new string[allServers.Count];
         var colors = new[] { "green", "blue", "red", "yellow", "magenta" };
-        
+
         for (int i = 0; i < allServers.Count; i++)
         {
             var server = allServers[i];
             var color = colors[i % colors.Length];
             var face = server.IsHealthy ? ":)" : ":(";
             var status = server.IsHealthy ? "HEALTHY" : "UNHEALTHY";
-            
+
             statusCells[i] = $"[{color}]{face}[/]\n[{color}]{status}[/]";
         }
 
         table.AddRow(statusCells);
-        
+
         var timeCells = new string[allServers.Count];
         for (int i = 0; i < allServers.Count; i++)
         {
@@ -107,6 +119,11 @@ public class InteractiveMenu : IDisposable
         table.AddRow(timeCells);
 
         AnsiConsole.Write(table);
+
+        _connectionDisplayManager.DisplayConnectionLines(allServers, colors);
+
+        _loadBalancerDisplayManager.DisplayLoadBalancer();
+
         AnsiConsole.MarkupLine($"[dim]Last updated: {DateTime.Now:HH:mm:ss}[/]");
     }
 
@@ -115,10 +132,10 @@ public class InteractiveMenu : IDisposable
         while (true)
         {
             AnsiConsole.Clear();
-            
+
             DisplayServerStatusTable();
             AnsiConsole.WriteLine();
-            
+
             AnsiConsole.MarkupLine("[bold cyan]Server Call Menu[/]");
             AnsiConsole.WriteLine();
 
@@ -171,28 +188,32 @@ public class InteractiveMenu : IDisposable
     {
         try
         {
+            _lastServerCalls[port] = DateTime.Now;
             AnsiConsole.MarkupLine($"[yellow]Calling server on port {port} with endpoint {endpoint}...[/]");
-            
+
             var url = $"http://localhost:{port}{endpoint}";
             var stopwatch = Stopwatch.StartNew();
             var response = await _httpClient.GetAsync(url);
             stopwatch.Stop();
-            
+
             var content = await response.Content.ReadAsStringAsync();
-            
+
+            AnsiConsole.Clear();
+            DisplayServerStatusTable();
+            AnsiConsole.WriteLine();
             var table = new Table();
             table.Border = TableBorder.Rounded;
             table.AddColumn("Property");
             table.AddColumn("Value");
-            
+
             table.AddRow("URL", url);
             table.AddRow("Status Code", $"[{(response.IsSuccessStatusCode ? "green" : "red")}]{(int)response.StatusCode} {response.StatusCode}[/]");
             table.AddRow("Response Time", $"{stopwatch.ElapsedMilliseconds}ms");
             table.AddRow("Content Type", response.Content.Headers.ContentType?.ToString() ?? "N/A");
             table.AddRow("Content Length", response.Content.Headers.ContentLength?.ToString() ?? "N/A");
-            
+
             AnsiConsole.Write(table);
-            
+
             if (!string.IsNullOrEmpty(content))
             {
                 AnsiConsole.WriteLine();
@@ -212,7 +233,6 @@ public class InteractiveMenu : IDisposable
     private async Task CallAllServersAsync(string endpoint)
     {
         AnsiConsole.MarkupLine($"[yellow]Calling all servers with endpoint {endpoint}...[/]");
-        AnsiConsole.WriteLine();
 
         var table = new Table();
         table.Border = TableBorder.Rounded;
@@ -225,14 +245,15 @@ public class InteractiveMenu : IDisposable
         {
             try
             {
+                _lastServerCalls[port] = DateTime.Now;
                 var url = $"http://localhost:{port}{endpoint}";
                 var stopwatch = Stopwatch.StartNew();
                 var response = await _httpClient.GetAsync(url);
                 stopwatch.Stop();
-                
+
                 var content = await response.Content.ReadAsStringAsync();
                 var preview = content.Length > 50 ? content.Substring(0, 50) + "..." : content;
-                
+
                 return new
                 {
                     Port = port,
@@ -254,7 +275,11 @@ public class InteractiveMenu : IDisposable
         });
 
         var results = await Task.WhenAll(tasks);
-        
+
+        AnsiConsole.Clear();
+        DisplayServerStatusTable();
+        AnsiConsole.WriteLine();
+
         foreach (var result in results)
         {
             table.AddRow(
@@ -268,15 +293,122 @@ public class InteractiveMenu : IDisposable
         AnsiConsole.Write(table);
     }
 
+    private async Task HandleLoadBalancerCallMenuAsync()
+    {
+        while (true)
+        {
+            AnsiConsole.Clear();
+
+            DisplayServerStatusTable();
+            AnsiConsole.WriteLine();
+
+            AnsiConsole.MarkupLine("[bold cyan]Load Balancer Call Menu[/]");
+            AnsiConsole.WriteLine();
+
+            var endpoint = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title("[green]Which endpoint do you want to call on the load balancer?[/]")
+                    .PageSize(10)
+                    .AddChoices(new[] {
+                        "/health",
+                        "/helloworld",
+                        "Custom endpoint",
+                        "Back to Main Menu"
+                    }));
+
+            if (endpoint == "Back to Main Menu")
+                return;
+
+            if (endpoint == "Custom endpoint")
+            {
+                endpoint = AnsiConsole.Ask<string>("[green]Enter custom endpoint (e.g., /api/test):[/]");
+            }
+
+            await CallLoadBalancerAsync(endpoint);
+
+            AnsiConsole.MarkupLine("\n[dim]Press any key to continue...[/]");
+            Console.ReadKey();
+        }
+    }
+
+    private async Task CallLoadBalancerAsync(string endpoint)
+    {
+        try
+        {
+            AnsiConsole.MarkupLine($"[yellow]Calling load balancer on port {_loadBalancerPort} with endpoint {endpoint}...[/]");
+
+            var url = $"http://localhost:{_loadBalancerPort}{endpoint}";
+            var stopwatch = Stopwatch.StartNew();
+            var response = await _httpClient.GetAsync(url);
+            stopwatch.Stop();
+
+            var content = await response.Content.ReadAsStringAsync();
+
+            string routedServerId = null;
+            if (content.Contains("serverId"))
+            {
+                try
+                {
+                    var serverIdMatch = System.Text.RegularExpressions.Regex.Match(content, @"serverId[\""\s]*:\s*[\""]([^\""]*)");
+                    if (serverIdMatch.Success)
+                    {
+                        routedServerId = serverIdMatch.Groups[1].Value;
+                        var serverInfo = _loadBalancer.GetAllServers().FirstOrDefault(s => s.ServerId == routedServerId);
+                        if (serverInfo != null)
+                        {
+                            _lastServerCalls[serverInfo.Port] = DateTime.Now;
+                        }
+                    }
+                }
+                catch { }
+            }
+            AnsiConsole.Clear();
+            DisplayServerStatusTable();
+            AnsiConsole.WriteLine();
+
+            var table = new Table();
+            table.Border = TableBorder.Rounded;
+            table.AddColumn("Property");
+            table.AddColumn("Value");
+
+            table.AddRow("URL", url);
+            table.AddRow("Status Code", $"[{(response.IsSuccessStatusCode ? "green" : "red")}]{(int)response.StatusCode} {response.StatusCode}[/]");
+            table.AddRow("Response Time", $"{stopwatch.ElapsedMilliseconds}ms");
+            table.AddRow("Content Type", response.Content.Headers.ContentType?.ToString() ?? "N/A");
+            table.AddRow("Content Length", response.Content.Headers.ContentLength?.ToString() ?? "N/A");
+
+            if (!string.IsNullOrEmpty(routedServerId))
+            {
+                table.AddRow("Routed to Server", $"[cyan]{routedServerId}[/]");
+            }
+
+            AnsiConsole.Write(table);
+
+            if (!string.IsNullOrEmpty(content))
+            {
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine("[bold]Response Content:[/]");
+                var panel = new Panel(content)
+                    .Border(BoxBorder.Rounded)
+                    .BorderColor(response.IsSuccessStatusCode ? Color.Green : Color.Red);
+                AnsiConsole.Write(panel);
+            }
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Error calling load balancer: {ex.Message}[/]");
+        }
+    }
+
     private async Task HandleServerKillerMenuAsync()
     {
         while (true)
         {
             AnsiConsole.Clear();
-            
+
             DisplayServerStatusTable();
             AnsiConsole.WriteLine();
-            
+
             AnsiConsole.MarkupLine("[bold red]Interactive ServerKiller[/]");
             AnsiConsole.WriteLine();
 
