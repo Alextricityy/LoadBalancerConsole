@@ -26,7 +26,7 @@ try
     var loadBalancer = new LoadBalancer(serverPorts, TimeSpan.FromSeconds(healthCheckInterval), configuration);
     
     // Start the LoadBalancerProxy
-    var proxy = new LoadBalancerProxy(loadBalancerPort, loadBalancer, configuration);
+    var proxy = new LoadBalancerProxy(loadBalancerPort, loadBalancer, servers, configuration);
     var proxyTask = Task.Run(() => proxy.StartAsync());
     
 

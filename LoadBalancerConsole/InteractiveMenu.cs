@@ -117,6 +117,19 @@ public class InteractiveMenu : IDisposable
         }
 
         table.AddRow(timeCells);
+        
+        var connectionCells = new string[allServers.Count];
+        for (int i = 0; i < allServers.Count; i++)
+        {
+            var server = allServers[i];
+            var color = colors[i % colors.Length];
+            var httpServer = _servers.FirstOrDefault(s => s.ServerInfo.Port == server.Port);
+            var activeConnections = httpServer?.ActiveConnections ?? 0;
+            var maxConnections = httpServer?.MaxConnections ?? 10;
+            connectionCells[i] = $"[{color}]Connections:[/]\n[{color}]{activeConnections}/{maxConnections}[/]";
+        }
+        
+        table.AddRow(connectionCells);
 
         AnsiConsole.Write(table);
 
@@ -157,6 +170,7 @@ public class InteractiveMenu : IDisposable
                     .AddChoices(new[] {
                         "/health",
                         "/helloworld",
+                        "/simulate-hung-connection",
                         "Custom endpoint",
                         "Back"
                     }));
@@ -312,6 +326,7 @@ public class InteractiveMenu : IDisposable
                     .AddChoices(new[] {
                         "/health",
                         "/helloworld",
+                        "/simulate-hung-connection",
                         "Custom endpoint",
                         "Back to Main Menu"
                     }));

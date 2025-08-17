@@ -24,6 +24,15 @@ public class LoadBalancer : IDisposable
     {
         return _servers.Where(s => s.IsHealthy).ToList();
     }
+    
+    public List<ServerInfo> GetAvailableServers(List<FakeHttpServer> httpServers)
+    {
+        return _servers.Where(s => s.IsHealthy).Where(s =>
+        {
+            var httpServer = httpServers.FirstOrDefault(hs => hs.ServerInfo.Port == s.Port);
+            return httpServer?.HasAvailableConnections ?? false;
+        }).ToList();
+    }
 
     public List<ServerInfo> GetAllServers()
     {

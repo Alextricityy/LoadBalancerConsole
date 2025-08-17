@@ -7,16 +7,18 @@ public class LoadBalancerProxy : IDisposable
 {
     private readonly HttpListener _listener;
     private readonly LoadBalancer _loadBalancer;
+    private readonly List<FakeHttpServer> _httpServers;
     private readonly HttpClient _httpClient;
     private readonly int _proxyPort;
     private int _currentServerIndex = 0;
     private readonly object _indexLock = new object();
     private readonly int _maxRetryAttempts;
 
-    public LoadBalancerProxy(int proxyPort, LoadBalancer loadBalancer, IConfiguration? configuration = null)
+    public LoadBalancerProxy(int proxyPort, LoadBalancer loadBalancer, List<FakeHttpServer> httpServers, IConfiguration? configuration = null)
     {
         _proxyPort = proxyPort;
         _loadBalancer = loadBalancer;
+        _httpServers = httpServers;
         var proxyTimeout = configuration?.GetValue<int>("LoadBalancerProxy:TimeoutSeconds", 10) ?? 10;
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(proxyTimeout) };
         _maxRetryAttempts = configuration?.GetValue<int>("LoadBalancerProxy:MaxRetryAttempts", 3) ?? 3;
@@ -42,21 +44,30 @@ public class LoadBalancerProxy : IDisposable
 
         try
         {
-            var healthyServers = _loadBalancer.GetHealthyServers();
+            var availableServers = _loadBalancer.GetAvailableServers(_httpServers);
             
-            if (!healthyServers.Any())
+            if (!availableServers.Any())
             {
-                await SendErrorResponse(response, 503, "No healthy servers available", stopwatch.Elapsed);
-                return;
+                var healthyServers = _loadBalancer.GetHealthyServers();
+                if (!healthyServers.Any())
+                {
+                    await SendErrorResponse(response, 503, "No healthy servers available", stopwatch.Elapsed);
+                    return;
+                }
+                else
+                {
+                    await SendErrorResponse(response, 503, "All servers at maximum capacity", stopwatch.Elapsed);
+                    return;
+                }
             }
 
             var success = false;
             var attemptsCount = 0;
-            var maxAttempts = Math.Min(healthyServers.Count, _maxRetryAttempts); // Try up to configured max attempts or all available
+            var maxAttempts = Math.Min(availableServers.Count, _maxRetryAttempts); // Try up to configured max attempts or all available
 
             while (!success && attemptsCount < maxAttempts)
             {
-                var targetServer = GetNextHealthyServer(healthyServers);
+                var targetServer = GetNextAvailableServer(availableServers);
                 if (targetServer == null)
                 {
                     break;
@@ -90,17 +101,16 @@ public class LoadBalancerProxy : IDisposable
         }
     }
 
-    private ServerInfo? GetNextHealthyServer(List<ServerInfo> healthyServers)
+    private ServerInfo? GetNextAvailableServer(List<ServerInfo> availableServers)
     {
-        if (!healthyServers.Any())
+        if (!availableServers.Any())
             return null;
 
         lock (_indexLock)
         {
-            // Ensure index is within bounds of current healthy servers
-            _currentServerIndex = _currentServerIndex % healthyServers.Count;
-            var server = healthyServers[_currentServerIndex];
-            _currentServerIndex = (_currentServerIndex + 1) % healthyServers.Count;
+            _currentServerIndex = _currentServerIndex % availableServers.Count;
+            var server = availableServers[_currentServerIndex];
+            _currentServerIndex = (_currentServerIndex + 1) % availableServers.Count;
             return server;
         }
     }

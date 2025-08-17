@@ -10,9 +10,14 @@ public class FakeHttpServer
     private readonly ServerInfo _serverInfo;
     private bool _isHealthy = true;
     private int? _forcedStatusCode = null;
+    private int _activeConnections = 0;
+    private const int MaxConnectionLimit = 10;
 
     public ServerInfo ServerInfo => _serverInfo;
     public bool IsHealthy => _isHealthy;
+    public int ActiveConnections => _activeConnections;
+    public int MaxConnections => MaxConnectionLimit;
+    public bool HasAvailableConnections => _activeConnections < MaxConnectionLimit;
 
     public FakeHttpServer(int port, string serverId)
     {
@@ -47,9 +52,19 @@ public class FakeHttpServer
         var request = context.Request;
         var response = context.Response;
 
+        Interlocked.Increment(ref _activeConnections);
+        
         try
         {
-            var (responseText, contentType) = GetResponse(request.Url?.AbsolutePath);
+            var path = request.Url?.AbsolutePath;
+            
+            if (path == "/simulate-hung-connection")
+            {
+                await HandleHungConnectionAsync(response);
+                return;
+            }
+            
+            var (responseText, contentType) = GetResponse(path);
             
             response.StatusCode = _forcedStatusCode ?? (_isHealthy ? 200 : 503);
             response.ContentType = contentType;
@@ -67,7 +82,42 @@ public class FakeHttpServer
             response.StatusCode = 500;
             response.OutputStream.Close();
         }
+        finally
+        {
+            Interlocked.Decrement(ref _activeConnections);
+        }
     }
+    
+    private async Task HandleHungConnectionAsync(HttpListenerResponse response)
+    {
+        try
+        {
+            response.StatusCode = 200;
+            response.ContentType = "application/json";
+            
+            var responseData = new
+            {
+                serverId = _serverInfo.ServerId,
+                status = "hung connection started",
+                activeConnections = _activeConnections,
+                maxConnections = MaxConnectionLimit,
+                timestamp = DateTime.UtcNow
+            };
+            
+            var buffer = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(responseData));
+            response.ContentLength64 = buffer.Length;
+            
+            await response.OutputStream.WriteAsync(buffer);
+            response.OutputStream.Close();
+            
+            await Task.Delay(Timeout.Infinite);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Hung connection in {_serverInfo.ServerId} ended: {ex.Message}");
+        }
+    }
+    
     private (string responseText, string contentType) GetResponse(string? path)
     {
         return path switch
@@ -84,7 +134,10 @@ public class FakeHttpServer
             serverId = _serverInfo.ServerId,
             status = _isHealthy ? "healthy" : "unhealthy",
             timestamp = DateTime.UtcNow,
-            port = _serverInfo.Port
+            port = _serverInfo.Port,
+            activeConnections = _activeConnections,
+            maxConnections = MaxConnectionLimit,
+            hasAvailableConnections = HasAvailableConnections
         };
         
         return JsonSerializer.Serialize(healthData);
