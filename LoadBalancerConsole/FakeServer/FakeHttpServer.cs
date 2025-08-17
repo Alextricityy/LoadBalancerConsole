@@ -2,7 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 
-namespace LoadBalancerConsole;
+namespace LoadBalancerConsole.FakeServer;
 
 public class FakeHttpServer
 {

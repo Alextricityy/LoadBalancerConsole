@@ -1,12 +1,13 @@
 using Spectre.Console;
+using ServerKillerClass = LoadBalancerConsole.ServerKiller.ServerKiller;
 
-namespace LoadBalancerConsole;
+namespace LoadBalancerConsole.Displays;
 
 public class ServerKillerDisplayManager
 {
-    private readonly ServerKiller _serverKiller;
+    private readonly ServerKillerClass _serverKiller;
     
-    public ServerKillerDisplayManager(ServerKiller serverKiller)
+    public ServerKillerDisplayManager(ServerKillerClass serverKiller)
     {
         _serverKiller = serverKiller;
     }

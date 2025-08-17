@@ -1,4 +1,4 @@
-namespace LoadBalancerConsole;
+namespace LoadBalancerConsole.FakeServer;
 
 public class ServerInfo
 {

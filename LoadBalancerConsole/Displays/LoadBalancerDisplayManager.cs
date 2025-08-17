@@ -1,6 +1,6 @@
 using Spectre.Console;
 
-namespace LoadBalancerConsole;
+namespace LoadBalancerConsole.Displays;
 
 public class LoadBalancerDisplayManager
 {

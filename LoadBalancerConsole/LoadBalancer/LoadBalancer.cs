@@ -1,7 +1,8 @@
 using System.Text.Json;
+using LoadBalancerConsole.FakeServer;
 using Microsoft.Extensions.Configuration;
 
-namespace LoadBalancerConsole;
+namespace LoadBalancerConsole.LoadBalancer;
 
 public class LoadBalancer : IDisposable
 {
@@ -11,11 +12,11 @@ public class LoadBalancer : IDisposable
 
     public LoadBalancer(IEnumerable<int> serverPorts, TimeSpan? checkInterval = null, IConfiguration? configuration = null)
     {
-        var healthCheckTimeout = configuration?.GetValue<int>("HealthCheck:TimeoutSeconds", 5) ?? 5;
+        var healthCheckTimeout = configuration?.GetValue("HealthCheck:TimeoutSeconds", 5) ?? 5;
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(healthCheckTimeout) };
         _servers = CreateServers(serverPorts);
         
-        var defaultInterval = configuration?.GetValue<int>("HealthCheck:DefaultIntervalSeconds", 30) ?? 30;
+        var defaultInterval = configuration?.GetValue("HealthCheck:DefaultIntervalSeconds", 30) ?? 30;
         var interval = checkInterval ?? TimeSpan.FromSeconds(defaultInterval);
         _healthCheckTimer = new Timer(RunHealthChecks, null, TimeSpan.Zero, interval);
     }

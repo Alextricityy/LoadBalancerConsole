@@ -1,13 +1,17 @@
+using LoadBalancerConsole.Displays;
+using LoadBalancerConsole.FakeServer;
 using Spectre.Console;
 using System.Diagnostics;
+using ServerKillerClass = LoadBalancerConsole.ServerKiller.ServerKiller;
+using LoadBalancerClass = LoadBalancerConsole.LoadBalancer.LoadBalancer;
 
 namespace LoadBalancerConsole;
 
 public class InteractiveMenu : IDisposable
 {
     private readonly List<FakeHttpServer> _servers;
-    private readonly ServerKiller _serverKiller;
-    private readonly LoadBalancer _loadBalancer;
+    private readonly ServerKillerClass _serverKiller;
+    private readonly LoadBalancerClass _loadBalancer;
     private readonly HttpClient _httpClient;
     private readonly int[] _serverPorts;
     private readonly Dictionary<int, DateTime> _lastServerCalls;
@@ -16,7 +20,7 @@ public class InteractiveMenu : IDisposable
     private readonly LoadBalancerDisplayManager _loadBalancerDisplayManager;
     private readonly ServerKillerDisplayManager _serverKillerDisplayManager;
 
-    public InteractiveMenu(List<FakeHttpServer> servers, ServerKiller serverKiller, LoadBalancer loadBalancer, int[] serverPorts, int loadBalancerPort = 9000)
+    public InteractiveMenu(List<FakeHttpServer> servers, ServerKillerClass serverKiller, LoadBalancerClass loadBalancer, int[] serverPorts, int loadBalancerPort = 9000)
     {
         _servers = servers;
         _serverKiller = serverKiller;

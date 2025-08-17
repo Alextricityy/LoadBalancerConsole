@@ -1,6 +1,7 @@
+using LoadBalancerConsole.FakeServer;
 using Spectre.Console;
 
-namespace LoadBalancerConsole;
+namespace LoadBalancerConsole.Displays;
 
 public static class ServerStatusDisplay
 {

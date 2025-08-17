@@ -1,3 +1,6 @@
+using LoadBalancerConsole.FakeServer;
+using LoadBalancerClass = LoadBalancerConsole.LoadBalancer.LoadBalancer;
+
 namespace LoadBalancerConsole.Tests;
 
 public class LoadBalancerTests
@@ -12,7 +15,7 @@ public class LoadBalancerTests
         
         await Task.Delay(500);
         
-        var loadBalancer = new LoadBalancer(new[] { port }, TimeSpan.FromHours(1));
+        var loadBalancer = new LoadBalancerClass(new[] { port }, TimeSpan.FromHours(1));
         var serverInfo = new ServerInfo(port, "server-1");
         
         var isHealthy = await loadBalancer.CheckServerHealthAsync(serverInfo);
@@ -26,7 +29,7 @@ public class LoadBalancerTests
     public async Task CheckServerHealthAsync_WithDownServer_ReturnsFalse()
     {
         var port = TestHelpers.GetAvailablePort();
-        var loadBalancer = new LoadBalancer(new[] { port }, TimeSpan.FromHours(1));
+        var loadBalancer = new LoadBalancerClass(new[] { port }, TimeSpan.FromHours(1));
         var serverInfo = new ServerInfo(port, "server-1");
         
         var isHealthy = await loadBalancer.CheckServerHealthAsync(serverInfo);
@@ -47,7 +50,7 @@ public class LoadBalancerTests
         
         await Task.Delay(500);
         
-        var loadBalancer = new LoadBalancer(new[] { healthyPort, downPort }, TimeSpan.FromMilliseconds(100));
+        var loadBalancer = new LoadBalancerClass(new[] { healthyPort, downPort }, TimeSpan.FromMilliseconds(100));
         
         await Task.Delay(1000);
         
@@ -64,7 +67,7 @@ public class LoadBalancerTests
     public void GetAllServers_ReturnsAllConfiguredServers()
     {
         var ports = new[] { TestHelpers.GetAvailablePort(), TestHelpers.GetAvailablePort(), TestHelpers.GetAvailablePort() };
-        var loadBalancer = new LoadBalancer(ports, TimeSpan.FromHours(1));
+        var loadBalancer = new LoadBalancerClass(ports, TimeSpan.FromHours(1));
         
         var allServers = loadBalancer.GetAllServers();
         
@@ -80,7 +83,7 @@ public class LoadBalancerTests
     public void Constructor_SetsUpServersCorrectly()
     {
         var ports = new[] { 8001, 8002, 8003 };
-        var loadBalancer = new LoadBalancer(ports, TimeSpan.FromMinutes(1));
+        var loadBalancer = new LoadBalancerClass(ports, TimeSpan.FromMinutes(1));
         
         var allServers = loadBalancer.GetAllServers();
         
@@ -104,7 +107,7 @@ public class LoadBalancerTests
         
         await Task.Delay(500);
         
-        var loadBalancer = new LoadBalancer(new[] { healthyPort }, TimeSpan.FromMilliseconds(500));
+        var loadBalancer = new LoadBalancerClass(new[] { healthyPort }, TimeSpan.FromMilliseconds(500));
         
         await Task.Delay(1500);
         
@@ -119,7 +122,7 @@ public class LoadBalancerTests
     public void Dispose_CleansUpResources()
     {
         var ports = new[] { TestHelpers.GetAvailablePort(), TestHelpers.GetAvailablePort() };
-        var loadBalancer = new LoadBalancer(ports, TimeSpan.FromSeconds(1));
+        var loadBalancer = new LoadBalancerClass(ports, TimeSpan.FromSeconds(1));
         
         loadBalancer.Dispose();
         

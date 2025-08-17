@@ -1,8 +1,9 @@
 using System.Net;
 using System.Text;
+using LoadBalancerConsole.FakeServer;
 using Microsoft.Extensions.Configuration;
 
-namespace LoadBalancerConsole;
+namespace LoadBalancerConsole.LoadBalancer;
 public class LoadBalancerProxy : IDisposable
 {
     private readonly HttpListener _listener;
@@ -19,9 +20,9 @@ public class LoadBalancerProxy : IDisposable
         _proxyPort = proxyPort;
         _loadBalancer = loadBalancer;
         _httpServers = httpServers;
-        var proxyTimeout = configuration?.GetValue<int>("LoadBalancerProxy:TimeoutSeconds", 10) ?? 10;
+        var proxyTimeout = configuration?.GetValue("LoadBalancerProxy:TimeoutSeconds", 10) ?? 10;
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(proxyTimeout) };
-        _maxRetryAttempts = configuration?.GetValue<int>("LoadBalancerProxy:MaxRetryAttempts", 3) ?? 3;
+        _maxRetryAttempts = configuration?.GetValue("LoadBalancerProxy:MaxRetryAttempts", 3) ?? 3;
         _listener = new HttpListener();
         _listener.Prefixes.Add($"http://localhost:{proxyPort}/");
     }

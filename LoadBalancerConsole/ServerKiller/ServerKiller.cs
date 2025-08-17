@@ -1,6 +1,7 @@
+using LoadBalancerConsole.FakeServer;
 using Microsoft.Extensions.Configuration;
 
-namespace LoadBalancerConsole;
+namespace LoadBalancerConsole.ServerKiller;
 
 public class ServerKiller : IDisposable
 {
@@ -21,10 +22,10 @@ public class ServerKiller : IDisposable
     {
         _servers = servers.ToList();
         _random = new Random();
-        _minInterval = minInterval ?? TimeSpan.FromSeconds(configuration?.GetValue<int>("ServerKiller:MinIntervalSeconds", 5) ?? 5);
-        _maxInterval = maxInterval ?? TimeSpan.FromSeconds(configuration?.GetValue<int>("ServerKiller:MaxIntervalSeconds", 15) ?? 15);
-        _killProbability = configuration?.GetValue<int>("ServerKiller:KillProbabilityPercent", 70) ?? 70;
-        _reviveProbability = configuration?.GetValue<int>("ServerKiller:ReviveProbabilityPercent", 80) ?? 80;
+        _minInterval = minInterval ?? TimeSpan.FromSeconds(configuration?.GetValue("ServerKiller:MinIntervalSeconds", 5) ?? 5);
+        _maxInterval = maxInterval ?? TimeSpan.FromSeconds(configuration?.GetValue("ServerKiller:MaxIntervalSeconds", 15) ?? 15);
+        _killProbability = configuration?.GetValue("ServerKiller:KillProbabilityPercent", 70) ?? 70;
+        _reviveProbability = configuration?.GetValue("ServerKiller:ReviveProbabilityPercent", 80) ?? 80;
         
         // Start the killer timer with initial random delay
         var initialDelay = GetRandomInterval();

@@ -1,3 +1,5 @@
+using LoadBalancerConsole.FakeServer;
+
 namespace LoadBalancerConsole.Tests;
 
 public class ServerInfoTests
