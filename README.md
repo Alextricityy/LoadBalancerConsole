@@ -1,7 +1,7 @@
 # Load Balancer Console
 A simple .NET 9.0 console application demonstrating HTTP server health monitoring and load balancing with an interactive CLI interface.
 
-![Demo](LoadBalancerConsole/Demo.gif)
+![Demo](Demo.gif)
 
 ## Features
 
