@@ -95,7 +95,7 @@ static async Task RunApplicationAsync(Task[] serverTasks, Task proxyTask, LoadBa
             {
                 try
                 {
-                    await Task.Delay(2000);
+                    await Task.Delay(1000);
                     if (!showingMenu && !shouldExit)
                     {
                         var allServers = loadBalancer.GetAllServers();

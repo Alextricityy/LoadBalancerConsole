@@ -14,6 +14,7 @@ public class InteractiveMenu : IDisposable
     private readonly int _loadBalancerPort;
     private readonly ConnectionDisplayManager _connectionDisplayManager;
     private readonly LoadBalancerDisplayManager _loadBalancerDisplayManager;
+    private readonly ServerKillerDisplayManager _serverKillerDisplayManager;
 
     public InteractiveMenu(List<FakeHttpServer> servers, ServerKiller serverKiller, LoadBalancer loadBalancer, int[] serverPorts, int loadBalancerPort = 9000)
     {
@@ -26,6 +27,7 @@ public class InteractiveMenu : IDisposable
         _lastServerCalls = new Dictionary<int, DateTime>();
         _connectionDisplayManager = new ConnectionDisplayManager(_lastServerCalls);
         _loadBalancerDisplayManager = new LoadBalancerDisplayManager(_lastServerCalls, _loadBalancerPort);
+        _serverKillerDisplayManager = new ServerKillerDisplayManager(_serverKiller);
     }
 
     public async Task ShowMainMenuAsync()
@@ -136,6 +138,8 @@ public class InteractiveMenu : IDisposable
         _connectionDisplayManager.DisplayConnectionLines(allServers, colors);
 
         _loadBalancerDisplayManager.DisplayLoadBalancer();
+        
+        _serverKillerDisplayManager.DisplayServerKiller();
 
         AnsiConsole.MarkupLine($"[dim]Last updated: {DateTime.Now:HH:mm:ss}[/]");
     }

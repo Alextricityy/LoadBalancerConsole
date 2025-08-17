@@ -11,6 +11,11 @@ public class ServerKiller : IDisposable
     private readonly TimeSpan _maxInterval;
     private readonly int _killProbability;
     private readonly int _reviveProbability;
+    private string _lastAction = "ServerKiller activated";
+    private DateTime _lastActionTime = DateTime.Now;
+
+    public string LastAction => _lastAction;
+    public DateTime LastActionTime => _lastActionTime;
 
     public ServerKiller(IEnumerable<FakeHttpServer> servers, TimeSpan? minInterval = null, TimeSpan? maxInterval = null, IConfiguration? configuration = null)
     {
@@ -29,11 +34,19 @@ public class ServerKiller : IDisposable
     public void KillServer(FakeHttpServer server)
     {
         server.SetHealthy(false);
+        UpdateLastAction($"Killed {server.ServerInfo.ServerId}");
     }
 
     public void ReviveServer(FakeHttpServer server)
     {
         server.SetHealthy(true);
+        UpdateLastAction($"Revived {server.ServerInfo.ServerId}");
+    }
+    
+    private void UpdateLastAction(string action)
+    {
+        _lastAction = action;
+        _lastActionTime = DateTime.Now;
     }
 
     public void PrintStatus()
@@ -61,10 +74,12 @@ public class ServerKiller : IDisposable
         if (randomServer.IsHealthy && action < _killProbability)
         {
             randomServer.SetHealthy(false);
+            UpdateLastAction($"Auto-killed {randomServer.ServerInfo.ServerId}");
         }
         else if (!randomServer.IsHealthy && action < _reviveProbability)
         {
             randomServer.SetHealthy(true);
+            UpdateLastAction($"Auto-revived {randomServer.ServerInfo.ServerId}");
         }
 
         ScheduleNextKill();
