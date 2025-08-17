@@ -1,5 +1,6 @@
 using LoadBalancerConsole;
 using Microsoft.Extensions.Configuration;
+using Spectre.Console;
 
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
@@ -28,20 +29,28 @@ try
     var proxy = new LoadBalancerProxy(loadBalancerPort, loadBalancer, configuration);
     var proxyTask = Task.Run(() => proxy.StartAsync());
     
-    Console.WriteLine("All systems started!");
-    Console.WriteLine($"Access your load-balanced service at: http://localhost:{loadBalancerPort}/");
-    Console.WriteLine($"Try endpoints: /health, /helloworld, or any other path");
-    Console.WriteLine($"Individual server health: {string.Join(", ", serverPorts.Select(p => $"http://localhost:{p}/health"))}");
+
+    ServerStatusDisplay.DisplayWelcomeMessage(loadBalancerPort, serverPorts);
     
     // Start the ServerKiller with random intervals from configuration
     var minKillInterval = configuration.GetValue<int>("ServerKiller:MinIntervalSeconds", 5);
     var maxKillInterval = configuration.GetValue<int>("ServerKiller:MaxIntervalSeconds", 15);
     using var serverKiller = new ServerKiller(servers, TimeSpan.FromSeconds(minKillInterval), TimeSpan.FromSeconds(maxKillInterval), configuration);
     
-    Console.WriteLine("Press Ctrl+C to stop.");
+    var displayUpdateTask = Task.Run(async () =>
+    {
+        while (true)
+        {
+            await Task.Delay(2000);
+            var allServers = loadBalancer.GetAllServers();
+            if (allServers.Count > 0)
+            {
+                ServerStatusDisplay.DisplayServerStatus(allServers);
+            }
+        }
+    });
     
-    // Wait for all tasks
-    var allTasks = serverTasks.Concat(new[] { proxyTask }).ToArray();
+    var allTasks = serverTasks.Concat(new[] { proxyTask, displayUpdateTask }).ToArray();
     await Task.WhenAll(allTasks);
 }
 catch (Exception ex)
@@ -63,7 +72,6 @@ static Task[] StartServers(int[] ports, List<FakeHttpServer> servers, IConfigura
         var port = ports[i];
         var serverId = $"server-{i + 1}";
         
-        Console.WriteLine($"Starting {serverId} on port {port}");
         
         tasks[i] = Task.Run(async () =>
         {

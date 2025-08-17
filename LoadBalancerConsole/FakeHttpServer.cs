@@ -34,7 +34,6 @@ public class FakeHttpServer
         _listener.Start();
         _serverInfo.Status = ServerStatus.Healthy;
        
-        Console.WriteLine($"Server {_serverInfo.ServerId} started on port {_serverInfo.Port}");
 
         while (true)
         {

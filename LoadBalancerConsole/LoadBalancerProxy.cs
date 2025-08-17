@@ -27,8 +27,6 @@ public class LoadBalancerProxy : IDisposable
     public async Task StartAsync()
     {
         _listener.Start();
-        Console.WriteLine($"LoadBalancer Proxy started on port {_proxyPort}");
-        Console.WriteLine($"Access your load-balanced service at: http://localhost:{_proxyPort}/");
 
         while (true)
         {

@@ -24,9 +24,7 @@ public class ServerKiller : IDisposable
         // Start the killer timer with initial random delay
         var initialDelay = GetRandomInterval();
         _killerTimer = new Timer(ExecuteRandomKill, null, initialDelay, Timeout.InfiniteTimeSpan);
-        
-        Console.WriteLine($"ServerKiller activated! Will randomly affect servers every {_minInterval.TotalSeconds}-{_maxInterval.TotalSeconds} seconds");
-    }
+            }
 
     public void KillServer(FakeHttpServer server)
     {
@@ -65,16 +63,10 @@ public class ServerKiller : IDisposable
         if (randomServer.IsHealthy && action < _killProbability)
         {
             randomServer.SetHealthy(false);
-            Console.WriteLine($"ServerKiller: Randomly killed {randomServer.ServerInfo.ServerId} (port {randomServer.ServerInfo.Port})");
         }
         else if (!randomServer.IsHealthy && action < _reviveProbability)
         {
             randomServer.SetHealthy(true);
-            Console.WriteLine($"ServerKiller: Randomly revived {randomServer.ServerInfo.ServerId} (port {randomServer.ServerInfo.Port})");
-        }
-        else
-        {
-            Console.WriteLine($"ServerKiller: Decided to leave {randomServer.ServerInfo.ServerId} alone this time");
         }
 
         ScheduleNextKill();

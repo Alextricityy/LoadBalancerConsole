@@ -90,20 +90,12 @@ public class LoadBalancer : IDisposable
 
     private static void LogHealthCheck(ServerInfo server, bool isHealthy, string details)
     {
-        var status = isHealthy ? "HEALTHY" : "FAILED";
-        Console.WriteLine($"Health check {server.ServerId} (port {server.Port}): {status} ({details})");
     }
 
     private async void RunHealthChecks(object? state)
     {
-        var timestamp = DateTime.Now.ToString("HH:mm:ss");
-        Console.WriteLine($"[{timestamp}] Checking {_servers.Count} servers...");
-        
         var tasks = _servers.Select(CheckServerHealthAsync);
         await Task.WhenAll(tasks);
-        
-        var healthyCount = _servers.Count(s => s.IsHealthy);
-        Console.WriteLine($"[{timestamp}] Complete: {healthyCount}/{_servers.Count} healthy");
     }
 
     public void Dispose()
