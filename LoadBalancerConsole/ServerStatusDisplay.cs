@@ -26,9 +26,10 @@ public static class ServerStatusDisplay
         {
             var server = servers[i];
             var color = Colors[i % Colors.Length];
+            var face = server.IsHealthy ? ":)" : ":(";
             var status = server.IsHealthy ? "HEALTHY" : "UNHEALTHY";
             
-            statusCells[i] = $"[{color}]{status}[/]";
+            statusCells[i] = $"[{color}]{face}[/]\n[{color}]{status}[/]";
         }
 
         table.AddRow(statusCells);
@@ -49,7 +50,7 @@ public static class ServerStatusDisplay
 
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine($"[dim]Last updated: {DateTime.Now:HH:mm:ss}[/]");
-        AnsiConsole.MarkupLine("[dim]Press Ctrl+C to stop the application[/]");
+        AnsiConsole.MarkupLine("[bold yellow]Press 'I' for Interactive Menu, 'Q' to Quit[/]");
     }
 
     public static void DisplayWelcomeMessage(int loadBalancerPort, int[] serverPorts)

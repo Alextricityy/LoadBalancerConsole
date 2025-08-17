@@ -29,13 +29,11 @@ public class ServerKiller : IDisposable
     public void KillServer(FakeHttpServer server)
     {
         server.SetHealthy(false);
-        Console.WriteLine($"ServerKiller: Manually killed {server.ServerInfo.ServerId} (port {server.ServerInfo.Port})");
     }
 
     public void ReviveServer(FakeHttpServer server)
     {
         server.SetHealthy(true);
-        Console.WriteLine($"ServerKiller: Manually revived {server.ServerInfo.ServerId} (port {server.ServerInfo.Port})");
     }
 
     public void PrintStatus()

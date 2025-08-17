@@ -35,23 +35,11 @@ try
     // Start the ServerKiller with random intervals from configuration
     var minKillInterval = configuration.GetValue<int>("ServerKiller:MinIntervalSeconds", 5);
     var maxKillInterval = configuration.GetValue<int>("ServerKiller:MaxIntervalSeconds", 15);
-    using var serverKiller = new ServerKiller(servers, TimeSpan.FromSeconds(minKillInterval), TimeSpan.FromSeconds(maxKillInterval), configuration);
+    var serverKiller = new ServerKiller(servers, TimeSpan.FromSeconds(minKillInterval), TimeSpan.FromSeconds(maxKillInterval), configuration);
     
-    var displayUpdateTask = Task.Run(async () =>
-    {
-        while (true)
-        {
-            await Task.Delay(2000);
-            var allServers = loadBalancer.GetAllServers();
-            if (allServers.Count > 0)
-            {
-                ServerStatusDisplay.DisplayServerStatus(allServers);
-            }
-        }
-    });
-    
-    var allTasks = serverTasks.Concat(new[] { proxyTask, displayUpdateTask }).ToArray();
-    await Task.WhenAll(allTasks);
+
+    await RunApplicationAsync(serverTasks, proxyTask, loadBalancer, servers, serverKiller, serverPorts);
+    serverKiller.Dispose();
 }
 catch (Exception ex)
 {
@@ -92,4 +80,89 @@ static Task[] StartServers(int[] ports, List<FakeHttpServer> servers, IConfigura
     }
     
     return tasks;
+}
+
+static async Task RunApplicationAsync(Task[] serverTasks, Task proxyTask, LoadBalancer loadBalancer, List<FakeHttpServer> servers, ServerKiller serverKiller, int[] serverPorts)
+{
+    bool shouldExit = false;
+    bool showingMenu = false;
+    
+    var displayUpdateTask = Task.Run(async () =>
+    {
+        while (!shouldExit)
+        {
+            if (!showingMenu)
+            {
+                try
+                {
+                    await Task.Delay(2000);
+                    if (!showingMenu && !shouldExit)
+                    {
+                        var allServers = loadBalancer.GetAllServers();
+                        if (allServers.Count > 0)
+                        {
+                            ServerStatusDisplay.DisplayServerStatus(allServers);
+                        }
+                    }
+                }
+                catch
+                {
+                    break;
+                }
+            }
+            else
+            {
+                await Task.Delay(100); // Short delay when menu is showing
+            }
+        }
+    });
+    
+    // Show initial status
+    await Task.Delay(3000); // Give servers time to start
+    var initialServers = loadBalancer.GetAllServers();
+    if (initialServers.Count > 0)
+    {
+        ServerStatusDisplay.DisplayServerStatus(initialServers);
+    }
+    
+    // Start input monitoring for interactive mode
+    var inputTask = Task.Run(async () =>
+    {
+        while (!shouldExit)
+        {
+            try
+            {
+                var keyInfo = Console.ReadKey(true);
+                if (keyInfo.Key == ConsoleKey.I) // Press 'I' for interactive mode
+                {
+                    showingMenu = true;
+                    
+                    // Create and show interactive menu
+                    using var menu = new InteractiveMenu(servers, serverKiller, loadBalancer, serverPorts);
+                    await menu.ShowMainMenuAsync();
+                    
+                    showingMenu = false;
+                    
+                    // Show status again after exiting menu
+                    var allServers = loadBalancer.GetAllServers();
+                    if (allServers.Count > 0)
+                    {
+                        ServerStatusDisplay.DisplayServerStatus(allServers);
+                    }
+                }
+                else if (keyInfo.Key == ConsoleKey.Q) // Press 'Q' to quit
+                {
+                    shouldExit = true;
+                    break;
+                }
+            }
+            catch
+            {
+                break;
+            }
+        }
+    });
+    
+    // Wait for the input task to signal exit
+    await inputTask;
 }
