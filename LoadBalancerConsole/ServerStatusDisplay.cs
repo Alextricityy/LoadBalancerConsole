@@ -5,8 +5,6 @@ namespace LoadBalancerConsole;
 public static class ServerStatusDisplay
 {
     private static readonly string[] Colors = { "green", "blue", "red", "yellow", "magenta" };
-    private static readonly string HappyFace = "😊";
-    private static readonly string SadFace = "☹️";
 
     public static void DisplayServerStatus(List<ServerInfo> servers)
     {
@@ -28,10 +26,9 @@ public static class ServerStatusDisplay
         {
             var server = servers[i];
             var color = Colors[i % Colors.Length];
-            var face = server.IsHealthy ? HappyFace : SadFace;
             var status = server.IsHealthy ? "HEALTHY" : "UNHEALTHY";
             
-            statusCells[i] = $"[{color}]{face}[/]\n[{color}]{status}[/]";
+            statusCells[i] = $"[{color}]{status}[/]";
         }
 
         table.AddRow(statusCells);
